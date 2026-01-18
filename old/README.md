@@ -1,0 +1,3 @@
+下記のパスのデータ（Chromeのプロファイル情報）をコピーして任意のフォルダに格納
+格納先のフォルダのパスを指定してChromeを起動すると、Googleアカウントにログインした状態で利用できる
+C:\Users\ユーザ名\AppData\Local\Google\Chrome\User Data
