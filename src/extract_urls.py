@@ -1,13 +1,16 @@
+import sys
 import json
 from tqdm import tqdm
 
 if __name__ == "__main__":
 
-    with open("data/json/nosleep.json", "r", encoding="utf-8") as f:
+    base_dir = f"data/reddit/subreddit/{sys.argv[1]}/"
+
+    with open(base_dir + "posts.json", "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    with open("urls.txt", "w", encoding="utf-8") as f:
+    with open(base_dir + "urls.txt", "w", encoding="utf-8") as f:
         for item in tqdm(data):
             url = item["data"]["url"]
-            if "https://" in url:
+            if sys.argv[1] in url:
                 f.write(url + "\n")

@@ -1,8 +1,10 @@
+import os
+import sys
 import json
 import requests
 import time
 
-def get_reddit_posts(subreddit, max_pages=3):
+def get_subreddit_posts(subreddit, max_pages=3):
     posts_all = []
     after = None
     headers = {"User-Agent": "MyRedditScraper/1.0"}
@@ -39,11 +41,17 @@ def get_reddit_posts(subreddit, max_pages=3):
             break
 
     # 結果を保存
-    with open("reddit_data.json", "w", encoding="utf-8") as f:
+    save_dir = f"data/reddit/subreddit/{subreddit}/"
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    with open(save_dir + "posts.json", "w", encoding="utf-8") as f:
         json.dump(posts_all, f, indent=4, ensure_ascii=False)
     
     print(f"合計 {len(posts_all)} 件の投稿を保存しました。")
 
 if __name__ == "__main__":
-    
-    get_reddit_posts("nosleep", max_pages=5) # 5ページ分（最大500件）取得を試みる
+
+    if sys.argv[1]:
+        get_subreddit_posts(sys.argv[1], max_pages=5) # 5ページ分（最大500件）取得を試みる
+    else:
+        print("引数が指定されていません。")
