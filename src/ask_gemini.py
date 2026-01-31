@@ -6,11 +6,12 @@ import pyperclip
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from datetime import datetime
+from extract_contents import get_text, get_comments
 
 # グローバル変数の初期化
 page = None
 
-def connect_and_ask(base_dir):
+def connect_and_ask(base_dir, target=""):
     global page
     with sync_playwright() as p:
         try:
@@ -25,19 +26,34 @@ def connect_and_ask(base_dir):
                 prompt = "".join(f.readlines())
             with open(base_dir + "urls.txt", "r") as f:
                 urls = [line[:-1] for line in f.readlines()]
+                urls = [url if url[-1] == "/" else url + "/" for url in urls]
             used_urls = []
             for url in urls:
                 print(url)
-                text = get_text(url)
-                input_text = prompt + "\n" + text
-                output_text = run_gemini_task(page, input_text)
-                if output_text:
-                    save_path = get_save_path(url, base_dir)
-                    with open(save_path, "w", errors='replace') as f:
-                        f.write(output_text)
-                    used_urls.append(url)
+                if target == "comments":
+                    comments = get_comments(url + ".json")
+                    for i, comment in enumerate(comments):
+                        input_text = prompt + "\n" + "\n".join(comment)
+                        output_text = run_gemini_task(page, input_text)
+                        if output_text:
+                            save_path = get_save_path(url, base_dir, f" ({i})")
+                            with open(save_path, "w", errors='replace') as f:
+                                f.write(output_text)
+                            if url not in used_urls:
+                                used_urls.append(url)
+                        else:
+                            raise ValueError("タイムアウトしました。")
                 else:
-                    raise ValueError("タイムアウトしました。")
+                    text = get_text(url)
+                    input_text = prompt + "\n" + text
+                    output_text = run_gemini_task(page, input_text)
+                    if output_text:
+                        save_path = get_save_path(url, base_dir)
+                        with open(save_path, "w", errors='replace') as f:
+                            f.write(output_text)
+                        used_urls.append(url)
+                    else:
+                        raise ValueError("タイムアウトしました。")
         except Exception as e:
             print(f"Playwrightエラー: {e}")
         finally:
@@ -78,24 +94,13 @@ def run_gemini_task(target_page, input_text):
     except Exception as e:
         return f"操作失敗: {e}"
 
-def get_text(url):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        response.encoding = response.apparent_encoding
-        soup = BeautifulSoup(response.text, 'html.parser')
-        text = soup.get_text(strip=True, separator='\n')
-        return text
-    except Exception as e:
-        return f"エラー: {e}"
-
-def get_save_path(url, base_dir):
+def get_save_path(url, base_dir, no=""):
     output_dir = base_dir + "results"
     dateinfo = datetime.now().strftime("%Y%m%d%H%M%S")
     values = url.split("/")
-    community_name = values[4]
+    community_name = values[-1]
     title = values[-2].replace("_", " ").title().replace(" ", "")
-    save_path = f"{output_dir}/{dateinfo}_{community_name}_{title}.txt"
+    save_path = f"{output_dir}/{dateinfo}_{community_name}_{title}{no}.txt"
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
     return save_path
@@ -118,6 +123,13 @@ def evacuate_urls(urls, used_urls, base_dir):
 
 if __name__ == '__main__':
 
+    targets = {
+        "AskReddit": "comments",
+        "nosleep": "",
+        "Paranormal": "",
+    }
+
     if sys.argv[1] == "reddit" and sys.argv[2] is not None:
         base_dir = f"data/reddit/subreddit/{sys.argv[2]}/"
-        connect_and_ask(base_dir)
+        target = targets[sys.argv[2]]
+        connect_and_ask(base_dir, target=target)

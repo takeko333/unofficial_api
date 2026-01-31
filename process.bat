@@ -1,2 +1,2 @@
-python src/ask_gemini.py reddit Paranormal
+python src/ask_gemini.py reddit AskReddit
 pause
