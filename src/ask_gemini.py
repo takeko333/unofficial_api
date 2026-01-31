@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import requests
@@ -100,6 +101,7 @@ def get_save_path(url, base_dir, no=""):
     values = url.split("/")
     community_name = values[-1]
     title = values[-2].replace("_", " ").title().replace(" ", "")
+    title = re.sub(r'[<>:"/\\|?*#]', '_', title)
     save_path = f"{output_dir}/{dateinfo}_{community_name}_{title}{no}.txt"
     if not os.path.isdir(output_dir):
         os.makedirs(output_dir)
@@ -125,6 +127,7 @@ if __name__ == '__main__':
 
     targets = {
         "AskReddit": "comments",
+        "CreepyWikipedia": "", 
         "nosleep": "",
         "Paranormal": "",
     }

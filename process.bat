@@ -1,2 +1,2 @@
-python src/ask_gemini.py reddit AskReddit
+python src/ask_gemini.py reddit CreepyWikipedia
 pause

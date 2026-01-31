@@ -1,19 +1,29 @@
 import json
 import requests
+import wikipedia
 from bs4 import BeautifulSoup
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 }
+wikipedia.set_lang("en")
 
 def get_text(url):
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        response.encoding = response.apparent_encoding
-        soup = BeautifulSoup(response.text, 'html.parser')
-        text = soup.get_text(strip=True, separator='\n')
-        return text
+        if "wikipedia.org" in url:
+            title = url.split("/")[-2]
+            title = title.split("#")[0]
+            title = title.split("?")[0]
+            title = title.replace("_", " ")
+            print(title)
+            data = wikipedia.page(title)
+            return data.content
+        else:
+            response = requests.get(url)
+            response.raise_for_status()
+            response.encoding = response.apparent_encoding
+            soup = BeautifulSoup(response.text, 'html.parser')
+            return soup.get_text(strip=True, separator='\n')
     except Exception as e:
         return f"エラー: {e}"
 
@@ -71,3 +81,10 @@ def group_comments_by_parent(json_data):
             
     return grouped_results
 
+
+if __name__ == "__main__":
+
+    url = "https://www.reddit.com/r/CreepyWikipedia/comments/1mqk72p/in_the_4th_century_there_was_supposedly_a_man/"
+    text = get_text_from_included_url(url)
+
+    print(text)

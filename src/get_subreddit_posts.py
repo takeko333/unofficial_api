@@ -52,6 +52,6 @@ def get_subreddit_posts(subreddit, max_pages=3):
 if __name__ == "__main__":
 
     if sys.argv[1]:
-        get_subreddit_posts(sys.argv[1], max_pages=5) # 5ページ分（最大500件）取得を試みる
+        get_subreddit_posts(sys.argv[1], max_pages=1) # 5ページ分（最大500件）取得を試みる
     else:
         print("引数が指定されていません。")
