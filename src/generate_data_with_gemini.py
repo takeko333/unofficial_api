@@ -116,7 +116,10 @@ def generate_image_with_gemini(base_dir):
                 input_text = generate_image_ideas_prompt + "\n" + text
                 while True:
                     output_text = get_generated_text(page, input_text)
-                    lines = [s.strip() for s in re.split(r'\d+行目, ', output_text) if s.strip()]
+                    lines = [s.strip() for s in re.split(r'\d+行目,', output_text) if s.strip()]
+                    if len(lines) != 1:
+                        break
+                    lines = [s.strip() for s in re.split(r'\d+,', output_text) if s.strip()]
                     if len(lines) != 1:
                         break
                 for idx, line in enumerate(lines):
