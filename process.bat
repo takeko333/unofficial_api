@@ -1,2 +1,2 @@
-python src/ask_gemini.py reddit CreepyWikipedia
+python src/generate_data_with_gemini.py CreepyWikipedia image
 pause

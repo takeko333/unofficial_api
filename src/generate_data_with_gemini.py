@@ -7,12 +7,13 @@ import pyperclip
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from datetime import datetime
+from glob import glob
 from extract_contents import get_text, get_comments
 
 # グローバル変数の初期化
 page = None
 
-def connect_and_ask(base_dir, target=""):
+def generate_text_with_gemini(base_dir, target=""):
     global page
     with sync_playwright() as p:
         try:
@@ -22,8 +23,7 @@ def connect_and_ask(base_dir, target=""):
             context = browser.contexts[0] if browser.contexts else browser.new_context()
             page = context.pages[0] if context.pages else context.new_page()
             print("接続に成功しました。")
-
-            with open(base_dir + "prompt.txt", "r", encoding='utf-8') as f:
+            with open(base_dir + "prompts/generate_text.txt", "r", encoding='utf-8') as f:
                 prompt = "".join(f.readlines())
             with open(base_dir + "urls.txt", "r") as f:
                 urls = [line[:-1] for line in f.readlines()]
@@ -35,7 +35,7 @@ def connect_and_ask(base_dir, target=""):
                     comments = get_comments(url + ".json")
                     for i, comment in enumerate(comments):
                         input_text = prompt + "\n" + "\n".join(comment)
-                        output_text = run_gemini_task(page, input_text)
+                        output_text = get_generated_text(page, input_text)
                         if output_text:
                             save_path = get_save_path(url, base_dir, f" ({i})")
                             with open(save_path, "w", errors='replace') as f:
@@ -47,7 +47,7 @@ def connect_and_ask(base_dir, target=""):
                 else:
                     text = get_text(url)
                     input_text = prompt + "\n" + text
-                    output_text = run_gemini_task(page, input_text)
+                    output_text = get_generated_text(page, input_text)
                     if output_text:
                         save_path = get_save_path(url, base_dir)
                         with open(save_path, "w", errors='replace') as f:
@@ -60,22 +60,19 @@ def connect_and_ask(base_dir, target=""):
         finally:
             evacuate_urls(urls, used_urls, base_dir)
 
-def run_gemini_task(target_page, input_text):
+def get_generated_text(target_page, input_text):
     try:
         target_page.goto("https://gemini.google.com/app?hl=ja")
         input_selector = 'div[contenteditable="true"]'
         target_page.wait_for_selector(input_selector, timeout=10000)
         target_page.focus(input_selector)
         target_page.click(input_selector)
-        # 既存テキスト削除
         target_page.keyboard.press("Control+A")
         target_page.keyboard.press("Backspace")
-        # テキストを入力
         pyperclip.copy(input_text)
         target_page.keyboard.press("Control+V")
         time.sleep(0.5)
         target_page.keyboard.press("Enter")
-
         print("回答を待機中...")
         last_text = ""
         stable_count = 0
@@ -94,6 +91,81 @@ def run_gemini_task(target_page, input_text):
         return None
     except Exception as e:
         return f"操作失敗: {e}"
+
+def generate_image_with_gemini(base_dir):
+    global page
+    with sync_playwright() as p:
+        try:
+            print("実行中のChromeに接続しています...")
+            browser = p.chromium.connect_over_cdp("http://localhost:9222")
+            context = browser.contexts[0] if browser.contexts else browser.new_context()
+            page = context.pages[0] if context.pages else context.new_page()
+            print("接続に成功しました。")
+            with open(base_dir + "prompts/generate_image_ideas.txt", "r", encoding='utf-8') as f:
+                generate_image_ideas_prompt = "".join(f.readlines())
+            with open(base_dir + "prompts/generate_image.txt", "r", encoding='utf-8') as f:
+                generate_image_prompt = "".join(f.readlines())
+            path_list = glob(base_dir + "results/checked/*.txt")
+            for path in path_list:
+                basename = os.path.basename(path).split(".")[0]
+                save_dir = base_dir + f"results/checked/{basename}"
+                if not os.path.exists(save_dir):
+                    os.makedirs(save_dir)
+                with open(path, "r") as f:
+                    text = "".join(f.readlines())
+                input_text = generate_image_ideas_prompt + "\n" + text
+                while True:
+                    output_text = get_generated_text(page, input_text)
+                    lines = [s.strip() for s in re.split(r'\d+行目, ', output_text) if s.strip()]
+                    if len(lines) != 1:
+                        break
+                for idx, line in enumerate(lines):
+                    print(line)
+                    input_text = generate_image_prompt + "\n" + line
+                    save_generated_image(page, input_text, save_dir, idx)
+        except Exception as e:
+            print(f"エラー発生: {e}")
+
+def save_generated_image(target_page, input_text, save_dir, idx):
+    try:
+        target_page.goto("https://gemini.google.com/app?hl=ja")
+        input_selector = 'div[contenteditable="true"]'
+        target_page.wait_for_selector(input_selector, timeout=10000)
+        target_page.click(input_selector)
+        pyperclip.copy(input_text)
+        target_page.keyboard.press("Control+V")
+        time.sleep(0.5)
+        target_page.keyboard.press("Enter")
+        print("画像生成を待機中...")
+        img_selector = 'model-response img[src*="googleusercontent"]'        
+        try:
+            target_page.wait_for_selector(img_selector, timeout=500000)
+        except:
+            print("画像が見つかりませんでした。")
+            return False
+        time.sleep(3) # 描画安定待ち
+        images = target_page.query_selector_all(img_selector)
+        for i, img_handle in enumerate(images):
+            src = img_handle.get_attribute("src")
+            if not src: continue
+            try:
+                new_page = target_page.context.new_page()
+                response = new_page.goto(src)
+                if response and response.status == 200:
+                    buffer = response.body()
+                    content_type = response.headers.get("content-type", "")
+                    ext = ".webp" if "webp" in content_type else ".png"
+                    filepath = os.path.join(save_dir, f"{idx}{ext}")
+                    with open(filepath, "wb") as f:
+                        f.write(buffer)
+                    print(f"保存成功: {filepath} ({content_type})")
+                new_page.close()
+            except Exception as inner_e:
+                print(f"画像 {i} の取得に失敗: {inner_e}")
+                if 'new_page' in locals(): 
+                    new_page.close()
+    except Exception as e:
+        print(f"エラー発生: {e}")
 
 def get_save_path(url, base_dir, no=""):
     output_dir = base_dir + "results"
@@ -132,7 +204,9 @@ if __name__ == '__main__':
         "Paranormal": "",
     }
 
-    if sys.argv[1] == "reddit" and sys.argv[2] is not None:
-        base_dir = f"data/reddit/subreddit/{sys.argv[2]}/"
-        target = targets[sys.argv[2]]
-        connect_and_ask(base_dir, target=target)
+    if len(sys.argv) == 3:
+        base_dir = f"data/reddit/subreddit/{sys.argv[1]}/"
+        if sys.argv[2] == "text":
+            generate_text_with_gemini(base_dir, target=targets[sys.argv[1]])
+        if sys.argv[2] == "image":
+            generate_image_with_gemini(base_dir)
