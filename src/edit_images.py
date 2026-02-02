@@ -1,6 +1,5 @@
 import sys
 import os
-import glob
 from glob import glob
 from PIL import Image
 
@@ -15,9 +14,13 @@ def crop_image(image, target_size=(1280,  720)):
 if __name__ == "__main__":
 
     base_dir = sys.argv[1]
-    path_list = glob(base_dir + "/*/*.png")
+    path_list = [path for path in glob(base_dir + "/*/*.png")]
 
     for i, path in enumerate(path_list):
         print(path)
-        #image = Image.open(path)
-        #image.save(path)
+        image = Image.open(path)
+        image = crop_image(image)
+        filename = os.path.basename(path)
+        new_filename = "crop_" + filename
+        save_path = path.replace(filename, new_filename)
+        image.save(save_path)

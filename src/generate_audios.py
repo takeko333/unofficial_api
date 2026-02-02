@@ -1,11 +1,13 @@
 import os
 import io
 import re
+import sys
 import requests
 import pathlib
 import textwrap
 
 from tqdm import tqdm
+from glob import glob
 from PIL import Image, ImageDraw, ImageFont
 from pydub import AudioSegment
 
@@ -27,22 +29,20 @@ def cleaning_text(text):
     return text
 
 if __name__ == "__main__":
-    speaker = 13
-    
-    # 調整したい話速と音高の値を設定
+
+    speaker = 13    
     desired_speed = 1.15  # 通常より速くする
     desired_pitch = -0.05  # 少し音を高くする
 
-    # inputs.txtからテキストを読み込む
-    with open("inputs.txt", "r", encoding="utf-8") as f:
+    load_path = glob(sys.argv[1] + "*_edited.txt")[0]
+    filename = os.path.basename(load_path)
+
+    with open(load_path, "r", encoding="shift-jis") as f:
         lines = [line.replace("\n", "") for line in f.readlines() if line != "\n"]
 
-    idx = 1
-    # 各行を音声に変換
+    idx = 0
     for line in tqdm(lines):
-        if not os.path.exists("results"):
-            os.makedirs("results")
-        wav_save_path = pathlib.Path(f"results/{str(idx).zfill(2)}.wav")        
+        wav_save_path = load_path.replace(filename, f"{idx}.wav")
         wav = text_to_wav(cleaning_text(line), speaker, speed=desired_speed, pitch=desired_pitch)
         wav.export(wav_save_path, format="wav")
         idx += 1
