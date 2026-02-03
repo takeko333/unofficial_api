@@ -1,2 +1,2 @@
-python src/edit_images.py data/reddit/subreddit/CreepyWikipedia/results/checked
+python src/edit_images.py CreepyWikipedia 20260131193015__PersecutionOfPeopleWithAlbinism
 pause

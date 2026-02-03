@@ -34,7 +34,8 @@ if __name__ == "__main__":
     desired_speed = 1.15  # 通常より速くする
     desired_pitch = -0.05  # 少し音を高くする
 
-    load_path = glob(sys.argv[1] + "*_edited.txt")[0]
+    load_dir = f"data/reddit/subreddit/{sys.argv[1]}/results/checked/{sys.argv[2]}/"
+    load_path = glob(load_dir + "*_edited.txt")[0]
     filename = os.path.basename(load_path)
 
     with open(load_path, "r", encoding="shift-jis") as f:

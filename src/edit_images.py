@@ -3,24 +3,33 @@ import os
 from glob import glob
 from PIL import Image
 
-def crop_image(image, target_size=(1280,  720)):
+def crop_image(image, position='center', target_size=(1280, 720)):
     w, h = image.size
     crop_w = w
     crop_h = w * 9 // 16
-    image = image.crop(((w - crop_w) // 2, (h - crop_h) // 2, (w + crop_w) // 2, (h + crop_h) // 2))
-    image = image.resize(target_size)
+    if position == 'top':
+        upper = 0
+    elif position == 'bottom':
+        upper = h - crop_h
+    else:
+        upper = (h - crop_h) // 2
+    lower = upper + crop_h
+    image = image.crop((0, upper, w, lower))
+    image = image.resize(target_size, Image.LANCZOS)
     return image
 
 if __name__ == "__main__":
 
-    base_dir = sys.argv[1]
-    path_list = [path for path in glob(base_dir + "/*/*.png")]
+    load_dir = f"data/reddit/subreddit/{sys.argv[1]}/results/checked/{sys.argv[2]}/"
+    path_list = glob(load_dir + "*.png")
 
     for i, path in enumerate(path_list):
         print(path)
-        image = Image.open(path)
-        image = crop_image(image)
         filename = os.path.basename(path)
-        new_filename = "crop_" + filename
-        save_path = path.replace(filename, new_filename)
-        image.save(save_path)
+        image = Image.open(path)
+        for pos in ["top", "center", "bottom"]:
+            save_dir = path.replace(filename, "")
+            save_dir += f"{pos}/"
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            crop_image(image, position=pos).save(save_dir + filename)
