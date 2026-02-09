@@ -29,8 +29,8 @@ if __name__ == "__main__":
         for pos in pos_list:
             if not os.path.exists(subdir + pos):
                 flag = True
+        print(f"{subdir} -> {flag}")
         if flag:
-            print(f"{subdir} -> {flag}")
             path_list = glob(subdir + "*.png")
             for i, path in enumerate(path_list):
                 print(path)
