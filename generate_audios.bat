@@ -1,2 +1,2 @@
-python src/generate_audios.py CreepyWikipedia 20260131193015__PersecutionOfPeopleWithAlbinism
+python src/generate_audios.py CreepyWikipedia
 pause

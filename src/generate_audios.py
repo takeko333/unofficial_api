@@ -2,6 +2,7 @@ import os
 import io
 import re
 import sys
+import shutil
 import requests
 import pathlib
 import textwrap
@@ -34,16 +35,22 @@ if __name__ == "__main__":
     desired_speed = 1.15  # 通常より速くする
     desired_pitch = -0.05  # 少し音を高くする
 
-    load_dir = f"data/reddit/subreddit/{sys.argv[1]}/results/checked/{sys.argv[2]}/"
-    load_path = glob(load_dir + "*_edited.txt")[0]
-    filename = os.path.basename(load_path)
+    load_dir = f"data/reddit/subreddit/{sys.argv[1]}/results/checked/"
+    load_path_list = glob(load_dir + "*.txt")
 
-    with open(load_path, "r", encoding="shift-jis") as f:
-        lines = [line.replace("\n", "") for line in f.readlines() if line != "\n"]
-
-    idx = 0
-    for line in tqdm(lines):
-        wav_save_path = load_path.replace(filename, f"{idx}.wav")
-        wav = text_to_wav(cleaning_text(line), speaker, speed=desired_speed, pitch=desired_pitch)
-        wav.export(wav_save_path, format="wav")
-        idx += 1
+    for load_path in load_path_list:
+        with open(load_path, "r", encoding="shift-jis") as f:
+            lines = [line.replace("\n", "") for line in f.readlines() if line != "\n"]
+        filename = os.path.basename(load_path)
+        basename = filename.split(".")[0]
+        save_dir = load_dir + basename
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        idx = 0
+        for line in tqdm(lines):
+            wav_save_path = f"{save_dir}/{idx}.wav"
+            wav = text_to_wav(cleaning_text(line), speaker, speed=desired_speed, pitch=desired_pitch)
+            wav.export(wav_save_path, format="wav")
+            idx += 1
+        new_path = shutil.move(load_path, f"{save_dir}/{basename}_edited.txt")
+        new_path = shutil.move(load_dir.replace("checked/", "") + filename, f"{save_dir}/{filename}")

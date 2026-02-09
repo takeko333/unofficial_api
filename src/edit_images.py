@@ -20,16 +20,25 @@ def crop_image(image, position='center', target_size=(1280, 720)):
 
 if __name__ == "__main__":
 
-    load_dir = f"data/reddit/subreddit/{sys.argv[1]}/results/checked/{sys.argv[2]}/"
-    path_list = glob(load_dir + "*.png")
+    pos_list = ["top", "center", "bottom"]
+    load_dir = f"data/reddit/subreddit/{sys.argv[1]}/results/checked/"
+    subdir_list = [subdir.replace("\\", "/") + "/" for subdir in glob(load_dir + "*")]
 
-    for i, path in enumerate(path_list):
-        print(path)
-        filename = os.path.basename(path)
-        image = Image.open(path)
-        for pos in ["top", "center", "bottom"]:
-            save_dir = path.replace(filename, "")
-            save_dir += f"{pos}/"
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
-            crop_image(image, position=pos).save(save_dir + filename)
+    for subdir in subdir_list:
+        flag = False
+        for pos in pos_list:
+            if not os.path.exists(subdir + pos):
+                flag = True
+        if flag:
+            print(f"{subdir} -> {flag}")
+            path_list = glob(subdir + "*.png")
+            for i, path in enumerate(path_list):
+                print(path)
+                filename = os.path.basename(path)
+                image = Image.open(path)
+                for pos in pos_list:
+                    save_dir = path.replace(filename, "")
+                    save_dir += f"{pos}/"
+                    if not os.path.exists(save_dir):
+                        os.makedirs(save_dir)
+                    crop_image(image, position=pos).save(save_dir + filename)
