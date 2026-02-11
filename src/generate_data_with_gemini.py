@@ -13,9 +13,12 @@ from extract_contents import get_text, get_comments
 # グローバル変数の初期化
 page = None
 
-def generate_text_with_gemini(base_dir, target=""):
+def generate_text_with_gemini(base_dir):
     global page
     with sync_playwright() as p:
+        urls = []
+        tags = []
+        used_urls = []
         try:
             print("実行中のChromeに接続しています...")
             # 事前に Chrome を --remote-debugging-port=9222 で起動しておく必要があります
@@ -23,30 +26,37 @@ def generate_text_with_gemini(base_dir, target=""):
             context = browser.contexts[0] if browser.contexts else browser.new_context()
             page = context.pages[0] if context.pages else context.new_page()
             print("接続に成功しました。")
-            with open(base_dir + "prompts/generate_text.txt", "r", encoding='utf-8') as f:
-                prompt = "".join(f.readlines())
+            with open(base_dir + "prompts/generate_text_from_post.txt", "r", encoding='utf-8') as f:
+                generate_text_from_post_prompt = "".join(f.readlines())
+            with open(base_dir + "prompts/generate_text_from_comments.txt", "r", encoding='utf-8') as f:
+                generate_text_from_comments_prompt = "".join(f.readlines())
             with open(base_dir + "urls.txt", "r") as f:
-                urls = [line[:-1] for line in f.readlines()]
-                urls = [url if url[-1] == "/" else url + "/" for url in urls]
-            used_urls = []
-            for url in urls:
+                lines = f.readlines()
+            for line in lines:
+                url, tag = line[:-1].split(", ")
+                if "AskReddit" in url:
+                    tag = "Question"
+                url = url if url[-1] == "/" else url + "/"
+                urls.append(url)
+                tags.append(tag)
+            for url, tag in zip(urls, tags):
                 print(url)
-                if target == "comments":
+                if tag == "Question":
+                    output_texts = []
                     comments = get_comments(url + ".json")
                     for i, comment in enumerate(comments):
-                        input_text = prompt + "\n" + "\n".join(comment)
+                        input_text = generate_text_from_comments_prompt + "\n" + "\n".join(comment)
                         output_text = get_generated_text(page, input_text)
                         if output_text:
-                            save_path = get_save_path(url, base_dir, f" ({i})")
-                            with open(save_path, "w", errors='replace') as f:
-                                f.write(output_text)
-                            if url not in used_urls:
-                                used_urls.append(url)
-                        else:
-                            raise ValueError("タイムアウトしました。")
+                            output_texts.append(output_text)
+                    save_path = get_save_path(url, base_dir)
+                    with open(save_path, "w", errors='replace') as f:
+                        f.write(f"{'-' * 25}\n".join(output_texts))
+                    if url not in used_urls:
+                        used_urls.append(url)
                 else:
                     text = get_text(url)
-                    input_text = prompt + "\n" + text
+                    input_text = generate_text_from_post_prompt + "\n" + text
                     output_text = get_generated_text(page, input_text)
                     if output_text:
                         save_path = get_save_path(url, base_dir)
@@ -174,7 +184,7 @@ def get_save_path(url, base_dir, no=""):
     output_dir = base_dir + "results"
     dateinfo = datetime.now().strftime("%Y%m%d%H%M%S")
     values = url.split("/")
-    community_name = values[-1]
+    community_name = values[-5]
     title = values[-2].replace("_", " ").title().replace(" ", "")
     title = re.sub(r'[<>:"/\\|?*#]', '_', title)
     save_path = f"{output_dir}/{dateinfo}_{community_name}_{title}{no}.txt"
@@ -183,33 +193,32 @@ def get_save_path(url, base_dir, no=""):
     return save_path
 
 def evacuate_urls(urls, used_urls, base_dir):
-    unused_urls = [url for url in urls if url not in used_urls]
-    with open(base_dir + "urls.txt", "w") as f:
-        for url in unused_urls:
-            f.write(url + "\n")
-    save_path = base_dir + "used_urls.txt"
-    if not os.path.isfile(save_path):
-        with open(save_path, "w") as f:
-            pass
-    with open(save_path, "r") as f:
-        past_used_urls = [line[:-1] for line in f.readlines()]
-    with open(save_path, "a") as f:
-        for url in used_urls:
-            if url not in past_used_urls:
-                f.write(url + "\n")
+    if urls:
+        unused = []
+        for url in urls:
+            if url not in used_urls:
+                unused.append(f"{url}, {tag}\n")
+        with open(base_dir + "urls.txt", "w") as f:
+            for value in unused:
+                f.write(value)
+        save_path = base_dir + "used_urls.txt"
+        if not os.path.isfile(save_path):
+            with open(save_path, "w") as f:
+                pass
+        with open(save_path, "r") as f:
+            past_used_urls = [line[:-1] for line in f.readlines()]
+        with open(save_path, "a") as f:
+            for url in used_urls:
+                if url not in past_used_urls:
+                    f.write(url + "\n")
 
 if __name__ == '__main__':
-
-    targets = {
-        "AskReddit": "comments",
-        "CreepyWikipedia": "", 
-        "nosleep": "",
-        "Paranormal": "",
-    }
 
     if len(sys.argv) == 3:
         base_dir = f"data/reddit/subreddit/{sys.argv[1]}/"
         if sys.argv[2] == "text":
-            generate_text_with_gemini(base_dir, target=targets[sys.argv[1]])
+            generate_text_with_gemini(base_dir)
         if sys.argv[2] == "image":
             generate_image_with_gemini(base_dir)
+    else:
+        print("標準入力が不正です。")
